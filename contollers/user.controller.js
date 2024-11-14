@@ -450,6 +450,7 @@ const updateBlockStatus = asyncHandler(async (req, res) => {
 
   user.isBlocked = isBlocked;
 
+  user.refreshToken = null;
   user.resetPasswordToken = null;
   user.resetPasswordExpiresAt = null;
 

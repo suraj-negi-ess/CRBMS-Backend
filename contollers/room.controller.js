@@ -77,6 +77,7 @@ export const getAllRooms = asyncHandler(async (req, res) => {
 
 export const getRoomById = asyncHandler(async (req, res) => {
   const { roomId } = req.params;
+  console.log(roomId);
 
   const room = await Room.findByPk(roomId, {
     attributes: { exclude: ["password"] },
