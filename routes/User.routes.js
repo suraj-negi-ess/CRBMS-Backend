@@ -15,6 +15,9 @@ import {
   resetPassword,
   checkAuth,
   updateBlockStatus,
+  updateUserProfile,
+  softDeleteUser,
+  permanentDeleteUser,
 } from "../contollers/user.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import upload from "../middlewares/multer.middleware.js";
@@ -51,7 +54,7 @@ router.route("/update-my-profile").put(verifyJWT, updateMyProfile);
 router.route("/:id").get(verifyJWT, getUserById);
 
 // Update User Profile
-router.route("/update-profile/:id").put(verifyJWT, updateMyProfile);
+router.route("/update-profile/:id").put(verifyJWT, updateUserProfile);
 
 // Change Password by user manually
 router.route("/update-password").put(verifyJWT, updatePassword);
@@ -68,5 +71,11 @@ router.route("/forgot-password").post(forgetPassword); //DONE
 router.route("/reset-password/:token").post(resetPassword); //DONE
 
 router.route("/block-status").post(updateBlockStatus);
+
+// Soft-Delete User Profile
+router.route("/soft-delete/:id").delete(softDeleteUser);
+
+// Permanent-Delete User Profile
+router.route("/permanent-delete/:id").delete(permanentDeleteUser);
 
 export default router;

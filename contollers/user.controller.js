@@ -12,9 +12,11 @@ import {
   sendPasswordResetEmail,
   sendResetSuccessEmail,
 } from "../nodemailer/email.js";
-import { Op } from "sequelize";
+import { Op, QueryTypes } from "sequelize";
 import fs from "fs";
 import path from "path";
+import CommitteeMember from "../models/CommitteeMember.models.js";
+import { sequelize } from "../database/database.js";
 
 // COOKIE OPTIONS
 const options = {
@@ -26,18 +28,47 @@ const options = {
 
 // REGISTER USER OR ADD USER
 const registerUser = asyncHandler(async (req, res) => {
-  const { username, email, password, fullname, phoneNumber } = req.body;
+  const {
+    username,
+    email,
+    password,
+    fullname,
+    phoneNumber,
+    committee, // May arrive as a string
+  } = req.body;
 
+  // Validation for required fields
   if (
     [username, email, password, fullname, phoneNumber].some(
-      (field) => field?.trim() === ("" || undefined)
+      (field) => !field || field.trim() === ""
     )
   ) {
-    throw new ApiError(400, "All Fields Are Required");
+    throw new ApiError(400, "All fields are required");
   }
 
-  const existingUser = await User.findOne({ where: { email, phoneNumber } });
+  // Ensure committee is parsed if it's sent as a string
+  let parsedCommittee;
+  try {
+    parsedCommittee = Array.isArray(committee)
+      ? committee
+      : JSON.parse(committee);
+  } catch (error) {
+    throw new ApiError(
+      400,
+      "Invalid committee format. Must be a valid JSON array."
+    );
+  }
 
+  // Validate that the parsed committee is an array of strings
+  if (
+    !Array.isArray(parsedCommittee) ||
+    parsedCommittee.some((id) => typeof id !== "string")
+  ) {
+    throw new ApiError(400, "Committee must be an array of string IDs");
+  }
+
+  // Check if user already exists
+  const existingUser = await User.findOne({ where: { email, phoneNumber } });
   if (existingUser) {
     throw new ApiError(400, "User already exists");
   }
@@ -46,7 +77,9 @@ const registerUser = asyncHandler(async (req, res) => {
   const avatarPath = req.file ? `avatars/${req.file.filename}` : null;
 
   try {
+    // Create the user
     const newUser = await User.create({
+      username,
       email,
       password: hashedPassword,
       fullname,
@@ -54,21 +87,40 @@ const registerUser = asyncHandler(async (req, res) => {
       avatarPath,
     });
 
+    // Add the user to committees if provided
+    if (parsedCommittee.length > 0) {
+      const committeeEntries = parsedCommittee.map((committeeId) => ({
+        committeeId,
+        userId: newUser.id,
+        role: "User", // Default role for new users
+        status: "active",
+      }));
+
+      await CommitteeMember.bulkCreate(committeeEntries);
+    }
+
     const createdUser = await User.findByPk(newUser.id, {
       attributes: { exclude: ["password", "refreshToken"] },
     });
 
     return res
       .status(201)
-      .json(new ApiResponse(200, { createdUser }, "User Created Successfully"));
+      .json(
+        new ApiResponse(
+          201,
+          { createdUser },
+          "User created and added to committees successfully"
+        )
+      );
   } catch (error) {
+    // Cleanup avatar if user creation fails
     if (avatarPath) {
       fs.unlink(`public/${avatarPath}`, (err) => {
         if (err) console.error("Error deleting the avatar:", err);
       });
     }
-    console.log(error);
-    throw new ApiError(500, "Failed to create user");
+    console.error(error);
+    throw new ApiError(500, "Failed to register user and assign to committees");
   }
 });
 
@@ -194,25 +246,66 @@ const getMyProfile = asyncHandler(async (req, res) => {
 
 // get user by id(For Admin)
 const getUserById = asyncHandler(async (req, res) => {
-  console.log("Working");
   const { id } = req.params;
   console.log(id);
 
   if (!id) {
-    throw new ApiError(400, "Please provide a valid user id");
+    throw new ApiError(400, "Please provide a valid user ID");
   }
 
-  const user = await User.findByPk(id, {
-    attributes: { exclude: ["password", "refreshToken"] },
-  });
+  const usersQuery = `
+    SELECT 
+      u.id AS "userId",
+      u.fullname AS "fullname",
+      u.email AS "email",
+      u."phoneNumber" AS "phoneNumber",
+      u."avatarPath",
+      c.name AS "committeename"
+    FROM 
+      users u
+    LEFT JOIN 
+      committee_members cm ON u.id = cm."userId"
+    LEFT JOIN 
+      committees c ON cm."committeeId" = c.id
+    WHERE 
+      u.id = :id
+  `;
 
-  if (!user) {
-    throw new ApiError(404, "User not found");
+  try {
+    const result = await sequelize.query(usersQuery, {
+      replacements: { id },
+      type: QueryTypes.SELECT,
+    });
+    console.log(result);
+
+    if (!result.length) {
+      throw new ApiError(
+        404,
+        "User not found or not associated with any committees"
+      );
+    }
+
+    // Process result to group committees
+    const userData = {
+      id: result[0].userId,
+      fullname: result[0].fullname,
+      email: result[0].email,
+      phoneNumber: result[0].phoneNumber,
+      avatarPath: result[0].avatarPath,
+      committees: result
+        .filter((row) => row.committeename) // Filter out rows with no committee
+        .map((row) => row.committeename), // Extract committee names
+    };
+
+    console.log("Structured User Data:", userData);
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, userData, "User retrieved successfully"));
+  } catch (error) {
+    console.error("Error executing query:", error.message);
+    throw new ApiError(500, "Database query failed");
   }
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, user, "User retrieved successfully"));
 });
 
 // get ALL user(For Admin)
@@ -233,6 +326,7 @@ const getAllUsers = asyncHandler(async (req, res) => {
     attributes: { exclude: ["password", "refreshToken"] },
     limit: parseInt(limit),
     offset: parseInt(offset),
+    paranoid: false,
   });
 
   if (!users) {
@@ -281,7 +375,7 @@ const updateMyProfile = asyncHandler(async (req, res) => {
 // Update User (Admin)
 const updateUserProfile = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { fullname, email, phoneNumber } = req.body;
+  const { fullname, email, phoneNumber, committees } = req.body;
 
   const loggedInUser = await User.findByPk(req.user.id);
 
@@ -302,15 +396,61 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     );
   }
 
+  // Update user details
   user.fullname = fullname || user.fullname;
   user.email = email || user.email;
   user.phoneNumber = phoneNumber || user.phoneNumber;
 
   await user.save();
 
+  // Synchronize committees in the `committee_members` table
+  const existingCommitteeIds = (
+    await CommitteeMember.findAll({
+      where: { userId: id },
+      attributes: ["committeeId"],
+    })
+  ).map((cm) => cm.committeeId);
+
+  const newCommitteeIds = committees;
+
+  // Find committees to add and remove
+  const committeesToAdd = newCommitteeIds.filter(
+    (committeeId) => !existingCommitteeIds.includes(committeeId)
+  );
+  const committeesToRemove = existingCommitteeIds.filter(
+    (committeeId) => !newCommitteeIds.includes(committeeId)
+  );
+
+  // Add new committees
+  if (committeesToAdd.length > 0) {
+    const committeeRecordsToAdd = committeesToAdd.map((committeeId) => ({
+      userId: id,
+      committeeId,
+      role: "User",
+    }));
+    await CommitteeMember.bulkCreate(committeeRecordsToAdd);
+  }
+
+  // Remove unselected committees
+  if (committeesToRemove.length > 0) {
+    await CommitteeMember.destroy({
+      where: {
+        userId: id,
+        committeeId: committeesToRemove,
+        role: "User",
+      },
+    });
+  }
+
   return res
     .status(200)
-    .json(new ApiResponse(200, user, "User profile updated successfully"));
+    .json(
+      new ApiResponse(
+        200,
+        user,
+        "User profile and committees updated successfully"
+      )
+    );
 });
 
 // Change Password from User Profile
@@ -470,6 +610,38 @@ const updateBlockStatus = asyncHandler(async (req, res) => {
     );
 });
 
+// Soft Delete User
+const softDeleteUser = asyncHandler(async (req, res) => {
+  const { id } = req.params; // Get user ID from request parameters
+  const user = await User.findByPk(id);
+
+  if (!user) {
+    throw new ApiError(404, "User not found"); // Throw ApiError for not found
+  }
+
+  await user.destroy(); // Soft delete the user
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, null, "User soft-deleted successfully"));
+});
+
+// Permanently delete user (removes record from DB)
+const permanentDeleteUser = asyncHandler(async (req, res) => {
+  const { id } = req.params; // Get user ID from request parameters
+  const user = await User.findByPk(id, { paranoid: false }); // Find user, include soft-deleted ones
+
+  if (!user) {
+    throw new ApiError(404, "User not found"); // Throw ApiError for not found
+  }
+
+  await user.destroy({ force: true }); // Permanently delete the user
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, null, "User permanently deleted successfully"));
+});
+
 export {
   registerUser,
   loginUser,
@@ -487,4 +659,6 @@ export {
   forgetPassword,
   resetPassword,
   updateBlockStatus,
+  softDeleteUser,
+  permanentDeleteUser,
 };

@@ -37,14 +37,6 @@ const CommitteeMember = sequelize.define(
       type: DataTypes.STRING(20),
       defaultValue: "active",
     },
-    createdAt: {
-      type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW,
-    },
-    updatedAt: {
-      type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW,
-    },
   },
   {
     timestamps: true, // enables automatic `createdAt` and `updatedAt` management

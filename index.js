@@ -6,16 +6,20 @@ dotenv.config({
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import { dbConnection } from "./database/database.js";
+import { dbConnection, sequelize } from "./database/database.js";
 import userRoutes from "./routes/User.routes.js";
 import roomRoutes from "./routes/Room.routes.js";
 import amenityRoutes from "./routes/RoomAmenity.routes.js";
+import committeeRoutes from "./routes/Committee.routes.js";
 
 import User from "./models/User.models.js";
 import Room from "./models/Room.models.js";
 import CommitteeMember from "./models/CommitteeMember.models.js";
 import Committee from "./models/Committee.models.js";
 import RoomAmenity from "./models/RoomAmenity.model.js";
+
+CommitteeMember.belongsTo(User, { foreignKey: "userId", as: "User" });
+User.hasMany(CommitteeMember, { foreignKey: "userId", as: "CommitteeMembers" });
 
 const app = express();
 
@@ -49,6 +53,7 @@ app.use("/avatars", express.static("public/avatars"));
 app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/rooms", roomRoutes);
 app.use("/api/v1/amenity", amenityRoutes);
+app.use("/api/v1/committee", committeeRoutes);
 
 const PORT = process.env.PORT || 9000;
 
@@ -64,7 +69,7 @@ dbConnection()
 
 // const syncModels = async () => {
 //   try {
-//     const abc = Room;
+//     const abc = CommitteeMember;
 //     await abc.sync({ alter: true, force: true }); // Ensures the table is updated
 //     console.log(abc, "table synced.");
 //   } catch (error) {

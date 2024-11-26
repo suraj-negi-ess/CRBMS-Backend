@@ -8,8 +8,9 @@ import path from "path";
 import fs from "fs";
 
 export const createRoom = asyncHandler(async (req, res) => {
-  const { name, description, location, capacity, amenities, password } =
-    req.body;
+  const { name, description, location, capacity, amenities } = req.body;
+
+  const password = "12345";
 
   if (!name || !location || !capacity) {
     throw new ApiError(400, "Please fill in all fields");

@@ -20,7 +20,6 @@ const Committee = sequelize.define(
       type: DataTypes.STRING(20),
       defaultValue: "active",
     },
-
   },
   {
     tableName: "committees",

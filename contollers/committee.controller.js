@@ -1,12 +1,14 @@
-import Committee from "../models/CommitteeMember.models.js";
+import Committee from "../models/Committee.models.js";
 import CommitteeMember from "../models/CommitteeMember.models.js";
 import User from "../models/User.models.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { sequelize } from "../database/database.js";
+import { QueryTypes, Sequelize } from "sequelize";
 
 export const createCommittee = asyncHandler(async (req, res) => {
-  const { name, description } = req.body;
+  const { name, description, createdByUserId } = req.body;
 
   if (!name) {
     throw new ApiError(400, "Committee name is required");
@@ -26,7 +28,7 @@ export const createCommittee = asyncHandler(async (req, res) => {
   const committee = await Committee.create({
     name,
     description,
-    createdBy: req.user.id,
+    // createdBy: createdByUserId,
     status: "active",
   });
 
@@ -140,13 +142,16 @@ export const addUserToCommittee = asyncHandler(async (req, res) => {
 });
 
 export const removeUserFromCommittee = asyncHandler(async (req, res) => {
+  console.log("Hi");
+
   const { committeeId, userId } = req.params;
+  console.log(committeeId);
+  console.log(userId);
+  console.log(req.params);
 
   const committeeMember = await CommitteeMember.findOne({
     where: {
       committeeId,
-      userId,
-      status: "active",
     },
   });
 
@@ -154,10 +159,8 @@ export const removeUserFromCommittee = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User is not a member of this committee");
   }
 
-  //This is soft delete
-  committeeMember.status = "inactive";
-  committeeMember.updatedAt = new Date();
-  await committeeMember.save();
+  // Permanently delete the committee member
+  await committeeMember.destroy();
 
   return res
     .status(200)
@@ -170,10 +173,10 @@ export const removeUserFromCommittee = asyncHandler(async (req, res) => {
 export const deleteCommittee = asyncHandler(async (req, res) => {
   const { committeeId } = req.params;
 
+  // Find the committee by ID
   const committee = await Committee.findOne({
     where: {
       id: committeeId,
-      deletedAt: null,
     },
   });
 
@@ -181,132 +184,120 @@ export const deleteCommittee = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Committee not found");
   }
 
-  // Soft delete the committee
-  committee.deletedAt = new Date();
-  committee.status = "inactive";
-  committee.updatedBy = req.user.id;
-  await committee.save();
-
-  // Deactivate all committee members
-  await CommitteeMember.update(
-    {
-      status: "inactive",
-      updatedAt: new Date(),
+  await CommitteeMember.destroy({
+    where: {
+      committeeId,
     },
-    {
-      where: {
-        committeeId,
-        status: "active",
-      },
-    }
-  );
+    force: true,
+  });
+
+  await committee.destroy({ force: true });
 
   return res
     .status(200)
-    .json(new ApiResponse(200, null, "Committee deleted successfully"));
+    .json(
+      new ApiResponse(
+        200,
+        null,
+        "Committee and its members deleted successfully"
+      )
+    );
 });
 
 // Get committee members
 export const getCommitteeMembers = asyncHandler(async (req, res) => {
   const { committeeId } = req.params;
-  const { page = 1, limit = 10 } = req.query;
 
-  const committee = await Committee.findOne({
-    where: {
-      id: committeeId,
-      deletedAt: null,
-    },
-  });
+  try {
+    // Verify if the committee exists and is not soft-deleted
+    const committeeExistsQuery = `
+      SELECT id 
+      FROM committees 
+      WHERE id = :committeeId
+    `;
 
-  if (!committee) {
-    throw new ApiError(404, "Committee not found");
+    const [committee] = await sequelize.query(committeeExistsQuery, {
+      replacements: { committeeId },
+      type: QueryTypes.SELECT,
+    });
+
+    if (!committee) {
+      throw new ApiError(404, "Committee not found");
+    }
+
+    // Fetch active members with user details using a raw query
+    const membersQuery = `
+  SELECT 
+    cm.id AS memberId, 
+    cm.status, 
+    u.id AS userId, 
+    u.fullname, 
+    u.email, 
+    u."phoneNumber", 
+    u."avatarPath"
+  FROM "committee_members" cm
+  INNER JOIN "users" u ON cm."userId" = u.id
+  WHERE cm."committeeId" = :committeeId AND cm.status = 'active'
+`;
+
+    const members = await sequelize.query(membersQuery, {
+      replacements: { committeeId },
+      type: QueryTypes.SELECT,
+    });
+
+    if (!members.length) {
+      return res
+        .status(200)
+        .json(new ApiResponse(200, { members: [] }, "No active members found"));
+    }
+
+    // console.log("Members retrieved successfully:", members);
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          { members },
+          "Committee members retrieved successfully"
+        )
+      );
+  } catch (error) {
+    console.error("Error retrieving committee members:", error);
+    throw error; // Forward the error to the error handler
   }
-
-  const offset = (page - 1) * limit;
-
-  const { count, rows: members } = await CommitteeMember.findAndCountAll({
-    where: {
-      committeeId,
-      status: "active",
-    },
-    include: [
-      {
-        model: User,
-        attributes: ["id", "firstName", "lastName", "email", "profileImageUrl"],
-      },
-    ],
-    limit,
-    offset,
-  });
-
-  return res.status(200).json(
-    new ApiResponse(
-      200,
-      {
-        members,
-        pagination: {
-          total: count,
-          pages: Math.ceil(count / limit),
-          currentPage: page,
-          limit,
-        },
-      },
-      "Committee members retrieved successfully"
-    )
-  );
 });
 
-// Get all committees
 export const getAllCommittees = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10, search = "" } = req.query;
-
-  const offset = (page - 1) * limit;
-
-  const whereClause = {
-    deletedAt: null,
-    ...(search && {
-      [Op.or]: [
-        { name: { [Op.iLike]: `%${search}%` } },
-        { description: { [Op.iLike]: `%${search}%` } },
-      ],
-    }),
-  };
-
-  const { count, rows: committees } = await Committee.findAndCountAll({
-    where: whereClause,
-    include: [
-      {
-        model: CommitteeMember,
-        where: { status: "active" },
-        required: false,
-        include: [
-          {
-            model: User,
-            attributes: ["id", "firstName", "lastName"],
-          },
-        ],
-      },
-    ],
-    limit,
-    offset,
-    order: [["createdAt", "DESC"]],
-  });
-
-  return res.status(200).json(
-    new ApiResponse(
-      200,
-      {
-        committees,
-        pagination: {
-          total: count,
-          pages: Math.ceil(count / limit),
-          currentPage: page,
-          limit,
-        },
-      },
-      "Committees retrieved successfully"
-    )
+  // Raw SQL query to fetch committees with member counts
+  const committees = await sequelize.query(
+    `
+    SELECT 
+      c.id AS "id",
+      c.name AS "name",
+      c.description AS "description",
+      c."createdAt" AS "createdAt",
+      c."updatedAt" AS "updatedAt",
+      COUNT(cm.id) AS "memberCount"
+    FROM 
+      "committees" c
+    LEFT JOIN 
+      "committee_members" cm
+    ON 
+      c.id = cm."committeeId"
+    GROUP BY 
+      c.id
+    ORDER BY 
+      c."createdAt" DESC
+    `,
+    { type: sequelize.QueryTypes.SELECT }
   );
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, { committees }, "Committees retrieved successfully")
+    );
 });
 
 // Get committee details
