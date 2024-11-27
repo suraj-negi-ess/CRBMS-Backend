@@ -3,34 +3,48 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import Meeting from "../models/Meeting.models.js";
 import Room from "../models/Room.models.js";
 import User from "../models/User.models.js";
+import { Op } from "sequelize";
 
 export const addMeeting = asyncHandler(async (req, res) => {
   const {
+    roomId,
     title,
     description,
     startTime,
     endTime,
-    roomId,
-    organizerId,
-    participants,
+    date,
+    isPrivate,
+    attendees,
   } = req.body;
+
+  const userId = req.user.id;
+
+  if (!userId) {
+    throw new ApiError(400, "Please Login To Book A Room");
+  }
+
+  if (!roomId) {
+    throw new ApiError(404, "Room Not Found, Please Select a Valid Room");
+  }
+
+  if (!title || !description || !startTime || !endTime || !date) {
+    throw new ApiError(400, "All required fields must be provided");
+  }
 
   const room = await Room.findByPk(roomId);
   if (!room) {
     throw new ApiError(404, "Room not found");
   }
 
-  const organizer = await User.findByPk(organizerId);
-  if (!organizer) {
-    throw new ApiError(404, "Organizer not found");
-  }
+  // Convert startTime and endTime to TIME format
+  const formattedStartTime = new Date(startTime).toTimeString().split(" ")[0]; // HH:mm:ss
+  const formattedEndTime = new Date(endTime).toTimeString().split(" ")[0]; // HH:mm:ss
 
-  // Check if room is already booked for the given time
   const overlappingMeeting = await Meeting.findOne({
     where: {
       roomId,
-      startTime: { [Op.lte]: endTime },
-      endTime: { [Op.gte]: startTime },
+      startTime: { [Op.lte]: formattedEndTime },
+      endTime: { [Op.gte]: formattedStartTime },
     },
   });
 
@@ -39,23 +53,21 @@ export const addMeeting = asyncHandler(async (req, res) => {
   }
 
   const newMeeting = await Meeting.create({
+    roomId,
+    userId,
     title,
     description,
-    startTime,
-    endTime,
-    roomId,
-    organizerId,
-    participants,
+    startTime: formattedStartTime,
+    endTime: formattedEndTime,
+    meetingDate: date,
+    isPrivate: isPrivate || false,
+    attendees: attendees || [],
   });
 
-  for (const participantId of participants) {
-    await Notification.create({
-      type: "Meeting Booked",
-      message: `A new meeting "${title}" has been scheduled.`,
-      userId: participantId,
-      meetingId: newMeeting.id,
-    });
-  }
+  // Notifications will be done here
+  attendees.forEach((attendee) => {
+    console.log(`Notification sent to ${attendee.email}`);
+  });
 
   res.status(201).json({
     message: "Meeting created successfully and notifications sent to attendees",

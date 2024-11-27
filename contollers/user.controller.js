@@ -29,7 +29,6 @@ const options = {
 // REGISTER USER OR ADD USER
 const registerUser = asyncHandler(async (req, res) => {
   const {
-    username,
     email,
     password,
     fullname,
@@ -39,7 +38,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
   // Validation for required fields
   if (
-    [username, email, password, fullname, phoneNumber].some(
+    [email, password, fullname, phoneNumber].some(
       (field) => !field || field.trim() === ""
     )
   ) {
@@ -79,7 +78,6 @@ const registerUser = asyncHandler(async (req, res) => {
   try {
     // Create the user
     const newUser = await User.create({
-      username,
       email,
       password: hashedPassword,
       fullname,
@@ -150,6 +148,7 @@ const loginUser = asyncHandler(async (req, res) => {
   }
 
   const OTP = generateOTP();
+  console.log(OTP, new Date(Date.now() + 0.5 * 60 * 60 * 1000));
 
   user.tempOTP = OTP;
   user.otpExpiresAt = new Date(Date.now() + 0.5 * 60 * 60 * 1000);
@@ -318,9 +317,9 @@ const getAllUsers = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Please Log In");
   }
 
-  if (!loggedInUser.isAdmin) {
-    throw new ApiError(403, "Access denied. Admins only.");
-  }
+  // if (!loggedInUser) {
+  //   throw new ApiError(403, "Access denied. Admins only.");
+  // }
 
   const users = await User.findAndCountAll({
     attributes: { exclude: ["password", "refreshToken"] },

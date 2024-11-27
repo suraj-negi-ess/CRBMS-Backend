@@ -11,12 +11,14 @@ import userRoutes from "./routes/User.routes.js";
 import roomRoutes from "./routes/Room.routes.js";
 import amenityRoutes from "./routes/RoomAmenity.routes.js";
 import committeeRoutes from "./routes/Committee.routes.js";
+import meetingRoutes from "./routes/Meeting.routes.js";
 
 import User from "./models/User.models.js";
 import Room from "./models/Room.models.js";
-import CommitteeMember from "./models/CommitteeMember.models.js";
+import CommitteeMember from "./models/CommitteeMember.models.js"; //Sync in the end
 import Committee from "./models/Committee.models.js";
 import RoomAmenity from "./models/RoomAmenity.model.js";
+import Meeting from "./models/Meeting.models.js";
 
 CommitteeMember.belongsTo(User, { foreignKey: "userId", as: "User" });
 User.hasMany(CommitteeMember, { foreignKey: "userId", as: "CommitteeMembers" });
@@ -54,6 +56,7 @@ app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/rooms", roomRoutes);
 app.use("/api/v1/amenity", amenityRoutes);
 app.use("/api/v1/committee", committeeRoutes);
+app.use("/api/v1/meeting", meetingRoutes);
 
 const PORT = process.env.PORT || 9000;
 
@@ -69,7 +72,7 @@ dbConnection()
 
 // const syncModels = async () => {
 //   try {
-//     const abc = CommitteeMember;
+//     const abc = Meeting;
 //     await abc.sync({ alter: true, force: true }); // Ensures the table is updated
 //     console.log(abc, "table synced.");
 //   } catch (error) {

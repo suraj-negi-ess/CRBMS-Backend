@@ -1,19 +1,34 @@
 import { DataTypes } from "sequelize";
 import { sequelize } from "../database/database.js";
-import Room from "./Room.models.js";
-import User from "./User.models.js";
 
 const Meeting = sequelize.define(
   "Meeting",
   {
-    meetingId: {
-      type: DataTypes.STRING,
+    id: {
+      type: DataTypes.UUID,
       primaryKey: true,
-      unique: true,
+      defaultValue: DataTypes.UUIDV4,
+    },
+    roomId: {
+      type: DataTypes.UUID, // Foreign key to link with Room table
       allowNull: false,
+      references: {
+        model: "rooms", // Name of the Room table
+        key: "id",
+      },
+      onDelete: "CASCADE", // Delete meeting if the room is deleted
+    },
+    userId: {
+      type: DataTypes.UUID, // Foreign key to link with User table
+      allowNull: false,
+      references: {
+        model: "users", // Name of the User table
+        key: "id",
+      },
+      onDelete: "SET NULL", // Keep meeting if user is deleted
     },
     title: {
-      type: DataTypes.STRING,
+      type: DataTypes.STRING(200),
       allowNull: false,
     },
     description: {
@@ -21,64 +36,42 @@ const Meeting = sequelize.define(
       allowNull: true,
     },
     startTime: {
-      type: DataTypes.DATE,
+      type: DataTypes.TIME,
       allowNull: false,
     },
     endTime: {
-      type: DataTypes.DATE,
+      type: DataTypes.TIME,
       allowNull: false,
     },
-    roomId: {
-      type: DataTypes.STRING,
+    meetingDate: {
+      type: DataTypes.DATEONLY, // Only stores the date (e.g., 2024-11-17)
       allowNull: false,
-      references: {
-        model: Room,
-        key: "roomId",
-      },
     },
-    organizerId: {
-      type: DataTypes.INTEGER,
+    isPrivate: {
+      type: DataTypes.BOOLEAN,
       allowNull: false,
-      references: {
-        model: User,
-        key: "userId",
-      },
+      defaultValue: false, // Public by default
     },
-    participants: {
-      type: DataTypes.ARRAY(DataTypes.JSON), // Array to store participant details
+    attendees: {
+      type: DataTypes.ARRAY(DataTypes.JSON), // List of users or emails
       allowNull: true,
-      defaultValue: [],
+      defaultValue: [], // Empty list initially
     },
+    status: {
+      type: DataTypes.ENUM("scheduled", "ongoing", "completed", "cancelled"),
+      defaultValue: "scheduled", // Default to scheduled
+    },
+    // notificationsSent: {
+    //   type: DataTypes.BOOLEAN, // Track if notifications were sent
+    //   allowNull: false,
+    //   defaultValue: false,
+    // },
   },
   {
-    timestamps: true,
+    tableName: "meetings",
+    timestamps: true, // Adds createdAt and updatedAt
+    paranoid: true, // Enables soft delete with deletedAt field
   }
 );
-
-// Associations
-Meeting.belongsTo(Room, { foreignKey: "roomId" });
-Meeting.belongsTo(User, { foreignKey: "organizerId", as: "organizer" });
-
-// Sequelize Hook to auto-generate meetingId in the format MEETING001, MEETING002...
-Meeting.beforeCreate(async (meeting) => {
-  const lastMeeting = await Meeting.findOne({
-    order: [["createdAt", "DESC"]],
-  });
-
-  let newMeetingId = "MEETING001";
-  if (lastMeeting && lastMeeting.meetingId) {
-    const lastMeetingNumber = parseInt(
-      lastMeeting.meetingId.replace("MEETING", ""),
-      10
-    );
-    const incrementedMeetingNumber = lastMeetingNumber + 1;
-    newMeetingId = `MEETING${String(incrementedMeetingNumber).padStart(
-      3,
-      "0"
-    )}`;
-  }
-
-  meeting.meetingId = newMeetingId;
-});
 
 export default Meeting;
