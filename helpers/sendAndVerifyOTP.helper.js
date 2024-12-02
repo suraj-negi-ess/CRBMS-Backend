@@ -8,5 +8,5 @@ export const generateOTP = (length = 6) => {
     const randomIndex = crypto.randomInt(0, digits.length); // Secure random index
     otp += digits[randomIndex];
   }
-  return otp;
+  return otp;  
 };

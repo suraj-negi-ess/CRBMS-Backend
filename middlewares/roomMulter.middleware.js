@@ -13,14 +13,8 @@ const roomStorage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const { name } = req.body;
-    if (!name) {
-      return cb(
-        new ApiError(400, "Room name is required to generate filename")
-      );
-    }
-    const sanitized_name = name.replace(/\s+/g, "_");
     const fileExt = path.extname(file.originalname).toLowerCase();
-    const newFileName = `${sanitized_name}${fileExt}`;
+    const newFileName = `${name.replace(/\s+/g, "_")}${fileExt}`;
     cb(null, newFileName);
   },
 });

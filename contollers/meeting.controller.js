@@ -4,6 +4,8 @@ import Meeting from "../models/Meeting.models.js";
 import Room from "../models/Room.models.js";
 import User from "../models/User.models.js";
 import { Op } from "sequelize";
+import { sequelize } from "../database/database.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
 
 export const addMeeting = asyncHandler(async (req, res) => {
   const {
@@ -76,30 +78,158 @@ export const addMeeting = asyncHandler(async (req, res) => {
 });
 
 export const getAllMeetings = asyncHandler(async (req, res) => {
-  const meetings = await Meeting.findAll({
-    include: [
-      { model: Room, attributes: ["roomName", "location"] },
-      { model: User, as: "organizer", attributes: ["username", "email"] },
-    ],
-  });
-  res.status(200).json({ data: meetings });
+  // Raw SQL query to fetch all meetings with associated room and organizer details
+  const meetings = await sequelize.query(
+    `
+    SELECT 
+      m.id AS "meetingId",
+      m."title",
+      m."description",
+      m."startTime",
+      m."endTime",
+      m."meetingDate",
+      m."isPrivate",
+      m."createdAt",
+      m."updatedAt",
+      r."name" AS "roomName",
+      r."location" AS "roomLocation",
+      u."fullname" AS "organizerName",
+      u."email" AS "organizerEmail"
+    FROM 
+      "meetings" m
+    LEFT JOIN 
+      "rooms" r
+    ON 
+      m."roomId" = r."id"
+    LEFT JOIN 
+      "users" u
+    ON 
+      m."userId" = u."id"
+    ORDER BY 
+      m."meetingDate" DESC, m."startTime" ASC
+    `,
+    { type: sequelize.QueryTypes.SELECT }
+  );
+
+  // Send response
+  res
+    .status(200)
+    .json(
+      new ApiResponse(200, { meetings }, "Meetings retrieved successfully")
+    );
 });
 
-export const getMeetingById = asyncHandler(async (req, res) => {
-  const { meetingId } = req.params;
+export const getTodaysMeetings = asyncHandler(async (req, res) => {
+  const today = new Date().toISOString().split("T")[0]; // Get today's date in 'YYYY-MM-DD' format
 
-  const meeting = await Meeting.findByPk(meetingId, {
-    include: [
-      { model: Room, attributes: ["roomName", "location"] },
-      { model: User, as: "organizer", attributes: ["username", "email"] },
-    ],
-  });
+  const meetings = await sequelize.query(
+    `
+    SELECT 
+      m.id AS "meetingId",
+      m."title" AS "title",
+      m."description" AS "description",
+      m."startTime" AS "startTime",
+      m."endTime" AS "endTime",
+      m."meetingDate" AS "meetingDate",
+      m."isPrivate" AS "isPrivate",
+      m."createdAt" AS "createdAt",
+      m."updatedAt" AS "updatedAt",
+      r."name" AS "roomName",
+      r."location" AS "roomLocation",
+      u."fullname" AS "organizerName",
+      u."email" AS "organizerEmail"
+    FROM 
+      "meetings" m
+    LEFT JOIN 
+      "rooms" r
+    ON 
+      m."roomId" = r."id"
+    LEFT JOIN 
+      "users" u
+    ON 
+      m."userId" = u."id"
+    WHERE 
+      m."meetingDate" = :today
+    ORDER BY 
+      m."startTime" ASC
+    `,
+    {
+      type: sequelize.QueryTypes.SELECT,
+      replacements: { today },
+    }
+  );
 
-  if (!meeting) {
-    throw new ApiError(404, "Meeting not found");
+  if (!meetings.length) {
+    throw new ApiError(404, "No meetings found for today");
   }
 
-  res.status(200).json({ data: meeting });
+  // Send response
+  res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { meetings },
+        "Today's meetings retrieved successfully"
+      )
+    );
+});
+
+export const getMyMeetings = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+
+  if (!userId) {
+    throw new ApiError(400, "User ID is required");
+  }
+
+  // Raw SQL query to fetch meetings organized by the user or where the user is an attendee
+  const myMeetings = await sequelize.query(
+    `
+    SELECT 
+      m.id AS "meetingId",
+      m."title",
+      m."description",
+      m."startTime",
+      m."endTime",
+      m."meetingDate",
+      m."isPrivate",
+      m."createdAt",
+      m."updatedAt",
+      r."name" AS "roomName",
+      r."location" AS "roomLocation",
+      u."fullname" AS "organizerName",
+      u."email" AS "organizerEmail"
+    FROM 
+      "meetings" m
+    LEFT JOIN 
+      "rooms" r
+    ON 
+      m."roomId" = r."id"
+    LEFT JOIN 
+      "users" u
+    ON 
+      m."userId" = u."id"
+    WHERE 
+      m."userId" = :userId -- User is the organizer
+      OR EXISTS (
+        SELECT 1 FROM UNNEST(m."attendees") attendee
+        WHERE attendee->>'id' = :userId -- User is an attendee
+      )
+    ORDER BY 
+      m."meetingDate" DESC, m."startTime" ASC
+    `,
+    {
+      type: sequelize.QueryTypes.SELECT,
+      replacements: { userId }, // Bind parameter to prevent SQL injection
+    }
+  );
+
+  // Respond with meetings
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, { myMeetings }, "Meetings  Retrieved Successfully")
+    );
 });
 
 // 4. Update a meeting

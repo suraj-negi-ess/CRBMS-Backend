@@ -4,11 +4,13 @@ import {
   createCommittee,
   deleteCommittee,
   getAllCommittees,
+  getCommitteeByUserId,
   getCommitteeDetails,
   getCommitteeMembers,
   removeUserFromCommittee,
   updateCommittee,
 } from "../contollers/committee.controller.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
@@ -29,5 +31,7 @@ router
 router
   .route("/committees/:committeeId/members/:userId")
   .delete(removeUserFromCommittee); // Remove a user from a committee
+
+router.route("/my-committee").get(verifyJWT, getCommitteeByUserId);
 
 export default router;

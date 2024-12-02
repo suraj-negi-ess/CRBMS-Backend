@@ -12,8 +12,8 @@ const storage = multer.diskStorage({
     cb(null, dir);
   },
   filename: (req, file, cb) => {
-    const { username, phoneNumber, fullname } = req.body;
-    const uniqueName = `${username}_${phoneNumber}_${fullname}`.replace(
+    const { phoneNumber, fullname, email } = req.body;
+    const uniqueName = `${email}_${phoneNumber}_${fullname}`.replace(
       /\s+/g,
       "_"
     );
@@ -23,7 +23,6 @@ const storage = multer.diskStorage({
   },
 });
 
-
 const fileFilter = (req, file, cb) => {
   const filetypes = /jpeg|jpg|png|webp/;
   const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
@@ -32,7 +31,9 @@ const fileFilter = (req, file, cb) => {
   if (mimetype && extname) {
     return cb(null, true);
   } else {
-    cb(new ApiError(400, "Only image files (jpeg, jpg, png, webp) are allowed"));
+    cb(
+      new ApiError(400, "Only image files (jpeg, jpg, png, webp) are allowed")
+    );
   }
 };
 

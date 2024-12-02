@@ -49,6 +49,7 @@ app.use((err, req, res, next) => {
 });
 
 app.use("/avatars", express.static("public/avatars"));
+app.use("/room-images", express.static("public/room-images"));
 
 // API ROUTES
 

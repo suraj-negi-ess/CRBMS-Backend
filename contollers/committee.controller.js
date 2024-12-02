@@ -380,3 +380,52 @@ export const updateCommitteeMemberRole = asyncHandler(async (req, res) => {
       )
     );
 });
+
+export const getCommitteeByUserId = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+
+  if (!userId) {
+    throw new ApiError(400, "User ID is required");
+  }
+
+  // Raw SQL query to fetch committees associated with the user
+  const userCommittees = await sequelize.query(
+    `
+    SELECT 
+      c.id AS "id",
+      c.name AS "name",
+      c.description AS "description",
+      c."createdAt" AS "createdAt",
+      c."updatedAt" AS "updatedAt",
+      COUNT(cm.id) AS "memberCount",
+      c.status As status
+    FROM 
+      "committees" c
+    LEFT JOIN 
+      "committee_members" cm
+    ON 
+      c.id = cm."committeeId"
+    WHERE 
+      cm."userId" = :userId
+    GROUP BY 
+      c.id
+    ORDER BY 
+      c."createdAt" DESC
+    `,
+    {
+      type: sequelize.QueryTypes.SELECT,
+      replacements: { userId }, // Bind parameter to prevent SQL injection
+    }
+  );
+
+  // Respond with user committees
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { committees: userCommittees },
+        "Committees retrieved successfully for the user"
+      )
+    );
+});
