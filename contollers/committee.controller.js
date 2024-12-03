@@ -269,7 +269,7 @@ export const getCommitteeMembers = asyncHandler(async (req, res) => {
 });
 
 export const getAllCommittees = asyncHandler(async (req, res) => {
-  // Raw SQL query to fetch committees with member counts
+  // Fetch committees with their member details
   const committees = await sequelize.query(
     `
     SELECT 
@@ -278,13 +278,27 @@ export const getAllCommittees = asyncHandler(async (req, res) => {
       c.description AS "description",
       c."createdAt" AS "createdAt",
       c."updatedAt" AS "updatedAt",
-      COUNT(cm.id) AS "memberCount"
+      COUNT(cm.id) AS "memberCount",
+      JSON_AGG(
+        JSON_BUILD_OBJECT(
+          'id', u.id,
+          'fullname', u."fullname",
+          'email', u."email",
+          'avatarPath', u."avatarPath",
+          'role', cm."role",
+          'status', cm."status"
+        )
+      ) AS "members"
     FROM 
       "committees" c
     LEFT JOIN 
       "committee_members" cm
     ON 
       c.id = cm."committeeId"
+    LEFT JOIN 
+      "users" u
+    ON 
+      cm."userId" = u.id
     GROUP BY 
       c.id
     ORDER BY 
@@ -296,7 +310,11 @@ export const getAllCommittees = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(
-      new ApiResponse(200, { committees }, "Committees retrieved successfully")
+      new ApiResponse(
+        200,
+        { committees },
+        "Committees with members retrieved successfully"
+      )
     );
 });
 
