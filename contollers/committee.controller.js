@@ -406,7 +406,7 @@ export const getCommitteeByUserId = asyncHandler(async (req, res) => {
     throw new ApiError(400, "User ID is required");
   }
 
-  // Raw SQL query to fetch committees associated with the user
+  // Raw SQL query to fetch committees associated with the user, including members
   const userCommittees = await sequelize.query(
     `
     SELECT 
@@ -415,14 +415,28 @@ export const getCommitteeByUserId = asyncHandler(async (req, res) => {
       c.description AS "description",
       c."createdAt" AS "createdAt",
       c."updatedAt" AS "updatedAt",
+      c.status AS "status",
       COUNT(cm.id) AS "memberCount",
-      c.status As status
+      JSON_AGG(
+        JSON_BUILD_OBJECT(
+          'id', u.id,
+          'fullname', u."fullname",
+          'avatarPath', u."avatarPath",
+          'email', u."email",
+          'role', cm."role",
+          'status', cm."status"
+        )
+      ) AS "members"
     FROM 
       "committees" c
     LEFT JOIN 
       "committee_members" cm
     ON 
       c.id = cm."committeeId"
+    LEFT JOIN 
+      "users" u
+    ON 
+      cm."userId" = u.id
     WHERE 
       cm."userId" = :userId
     GROUP BY 
@@ -432,7 +446,7 @@ export const getCommitteeByUserId = asyncHandler(async (req, res) => {
     `,
     {
       type: sequelize.QueryTypes.SELECT,
-      replacements: { userId }, // Bind parameter to prevent SQL injection
+      replacements: { userId },
     }
   );
 
@@ -443,7 +457,7 @@ export const getCommitteeByUserId = asyncHandler(async (req, res) => {
       new ApiResponse(
         200,
         { committees: userCommittees },
-        "Committees retrieved successfully for the user"
+        "Committees with members retrieved successfully for the user"
       )
     );
 });
