@@ -18,6 +18,10 @@ const Room = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: true,
     },
+    tolerancePeriod: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
     description: {
       type: DataTypes.STRING,
       allowNull: true,

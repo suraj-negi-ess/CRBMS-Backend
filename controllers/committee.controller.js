@@ -325,27 +325,7 @@ export const getCommitteeDetails = asyncHandler(async (req, res) => {
   const committee = await Committee.findOne({
     where: {
       id: committeeId,
-      deletedAt: null,
     },
-    include: [
-      {
-        model: CommitteeMember,
-        where: { status: "active" },
-        required: false,
-        include: [
-          {
-            model: User,
-            attributes: [
-              "id",
-              "firstName",
-              "lastName",
-              "email",
-              "profileImageUrl",
-            ],
-          },
-        ],
-      },
-    ],
   });
 
   if (!committee) {

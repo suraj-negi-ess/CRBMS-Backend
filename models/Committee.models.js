@@ -28,4 +28,5 @@ const Committee = sequelize.define(
   }
 );
 
+
 export default Committee;

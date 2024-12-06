@@ -15,7 +15,7 @@ import {
 import Location from "../models/Location.model.js";
 
 export const createRoom = asyncHandler(async (req, res) => {
-  const { name, description, location, capacity, sanitationStatus  } = req.body;
+  const { name, description, location, capacity,tolerancePeriod, sanitationStatus  } = req.body;
 
   if (!name || !location || !capacity) {
     throw new ApiError(400, "Please fill in all fields");
@@ -38,6 +38,7 @@ export const createRoom = asyncHandler(async (req, res) => {
     description,
     location,
     capacity,
+    tolerancePeriod,
     roomImagePath,
     sanitationStatus, 
   });
