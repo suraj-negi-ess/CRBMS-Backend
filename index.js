@@ -5,6 +5,8 @@ import cookieParser from "cookie-parser";
 import { dbConnection } from "./database/database.js";
 import router from "./router.js";
 import Location from "./models/Location.model.js";
+import RoomAmenityQuantity from "./models/RoomAmenitiesQuantity.models.js";
+import Room from "./models/Room.models.js";
 
 const app = express();
 
@@ -54,7 +56,7 @@ dbConnection()
 
 const syncModels = async () => {
   try {
-    const abc = RoomAmenityQuantity;
+    const abc = Room;
     await abc.sync({ alter: true, force: true });
     console.log(abc, "table synced.");
   } catch (error) {

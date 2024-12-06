@@ -1,5 +1,6 @@
 import { DataTypes } from "sequelize";
 import { sequelize } from "../database/database.js";
+import Location from "./Location.model.js";
 
 const Room = sequelize.define(
   "Room",
@@ -13,14 +14,6 @@ const Room = sequelize.define(
       type: DataTypes.STRING(100),
       allowNull: false,
     },
-    location: {
-      type: DataTypes.STRING(255),
-      allowNull: true,
-    },
-    // floor: {
-    //   type: DataTypes.STRING(50),
-    //   allowNull: true,
-    // },
     capacity: {
       type: DataTypes.INTEGER,
       allowNull: true,
@@ -34,18 +27,14 @@ const Room = sequelize.define(
       defaultValue: true,
     },
     sanitationStatus: {
-      type: DataTypes.STRING(20),
-      defaultValue: "clean",
-      field: "sanitation_status",
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
     },
     roomImagePath: {
       type: DataTypes.STRING(255),
       allowNull: true,
     },
-    amenities: {
-      type: DataTypes.ARRAY(DataTypes.STRING),
-      allowNull: true,
-    },
+
     // geoLocation: {
     //   type: DataTypes.GEOMETRY("POINT"),
     //   allowNull: true,
@@ -58,5 +47,14 @@ const Room = sequelize.define(
     paranoid: true,
   }
 );
+
+Location.hasOne(Room, {
+  foreignKey: {
+    name: "location", // Foreign key in RoomAmenityQuantity
+    type: DataTypes.UUID, // Ensure it's UUID if Room has UUID primary key
+  },
+  onDelete: "CASCADE",
+});
+Room.belongsTo(Location, { foreignKey: "location" });
 
 export default Room;

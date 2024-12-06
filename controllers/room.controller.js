@@ -2,18 +2,20 @@ import bcrypt from "bcrypt";
 import Room from "../models/Room.models.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
-import { json } from "sequelize";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import path from "path";
 import fs from "fs";
-import RoomAmenityQuantity from "../models/RoomAmenitiesQuantity.models.js";
-import RoomAmenity from "../models/RoomAmenity.model.js";
-import User from "../models/User.models.js";
+import {
+  createAmenityQuantityService,
+  deleteAmenityQuantityService,
+  editAmenityQuantityService,
+  getAllAmenitiesActiveQuantityService,
+  getAllAmenitiesQuantityService,
+} from "../services/Room,service.js";
+import Location from "../models/Location.model.js";
 
 export const createRoom = asyncHandler(async (req, res) => {
-  const { name, description, location, capacity, amenities } = req.body;
-
-  const password = "12345";
+  const { name, description, location, capacity, sanitationStatus  } = req.body;
 
   if (!name || !location || !capacity) {
     throw new ApiError(400, "Please fill in all fields");
@@ -24,8 +26,6 @@ export const createRoom = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Room already exists");
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
-
   let roomImagePath = null;
   if (req.file) {
     roomImagePath = `room-images/${name.replace(/\s+/g, "_")}${path
@@ -33,21 +33,13 @@ export const createRoom = asyncHandler(async (req, res) => {
       .toLowerCase()}`;
   }
 
-  // Parse amenities if it’s a string, ensuring it’s an array
-  const formattedAmenities = Array.isArray(amenities)
-    ? amenities
-    : typeof amenities === "string"
-    ? JSON.parse(amenities)
-    : [];
-
   const room = await Room.create({
     name,
     description,
-    password: hashedPassword,
     location,
     capacity,
     roomImagePath,
-    amenities: formattedAmenities, // Pass formatted array here
+    sanitationStatus, 
   });
 
   if (!room) {
@@ -71,7 +63,10 @@ export const createRoom = asyncHandler(async (req, res) => {
 
 export const getAllRooms = asyncHandler(async (req, res) => {
   const rooms = await Room.findAll({
-    attributes: { exclude: ["password"] },
+    include:[{
+      model:Location,
+    }
+  ],
   });
 
   return res
@@ -219,9 +214,7 @@ export const changeStatus = asyncHandler(async (req, res) => {
   }
 
   room.status = status;
-
   await room.save();
-
   res.status(200).json({
     success: true,
     message: "Room status updated successfully",
@@ -247,9 +240,9 @@ export const addRoomGallery = asyncHandler(async (req, res) => {
     : [];
 
   const room = await Room.create({
-    createdBy, 
-    updatedBy, 
-    deletedBy, 
+    createdBy,
+    updatedBy,
+    deletedBy,
     status,
     roomImagePath,
   });
@@ -281,9 +274,7 @@ export const deleteRoomGallery = asyncHandler(async (req, res) => {
   if (!room) {
     throw new ApiError(404, "Room gallery not found");
   }
-
   await room.destroy();
-
   res.status(200).json({
     success: true,
     message: "Room gallery deleted successfully",
@@ -291,43 +282,89 @@ export const deleteRoomGallery = asyncHandler(async (req, res) => {
 });
 
 export const getAllAmenitiesQuantity = asyncHandler(async (req, res) => {
-  console.log("Hello");
-  const rooms = await RoomAmenityQuantity.findAll();
-
+  const result = await getAllAmenitiesQuantityService();
   return res
     .status(201)
-    .json(new ApiResponse(200, { rooms }, "Rooms amenities retrieved Successfully"));
+    .json(
+      new ApiResponse(
+        200,
+        { result },
+        "Rooms amenities quantity retrieved Successfully"
+      )
+    );
 });
 
+// Get all Amenity quantity
 export const getAllAmenitiesActiveQuantity = asyncHandler(async (req, res) => {
-  const rooms = await RoomAmenityQuantity.findAll({
-    where:{status:true}
-  });
-
+  const result = await getAllAmenitiesActiveQuantityService();
   return res
     .status(201)
-    .json(new ApiResponse(200, { rooms }, "Rooms  Retrieved Successfully"));
+    .json(new ApiResponse(200, { result }, "Rooms  Retrieved Successfully"));
 });
 
 export const createAmenityQuantity = asyncHandler(async (req, res) => {
-  const { quantity, createdBy, roomId,amenityId } = req.body;
-
+  const { quantity, status, createdBy, roomId, amenityId } = req.body;
   if (!quantity) {
     throw new ApiError(400, "Quantity Is required");
   }
 
-    // TO-Do check for name to find duplicity  
-
-  const roomAmenity = await RoomAmenityQuantity.create({
+  const result = await createAmenityQuantityService(
     quantity,
-     createdBy, 
-     roomId,
-     amenityId
-  });
+    status,
+    createdBy,
+    roomId,
+    amenityId
+  );
 
-  res
+  return res
     .status(201)
     .json(
-      new ApiResponse(201, { roomAmenity }, "Room Amenity Quantity added successfully")
+      new ApiResponse(
+        201,
+        { result },
+        "Room Amenity Quantity added successfully"
+      )
     );
+});
+
+
+
+
+
+export const editAmenityQuantity = asyncHandler(async (req, res) => {
+  const { amenityQuantityId } = req.params;
+  const {
+    quantity,
+    status,
+    updatedBy,
+  } = req.body;
+
+  const result = await editAmenityQuantityService(
+    quantity,
+    status,
+    updatedBy,
+    amenityQuantityId
+  );
+
+  res.status(200).json({
+    success: true,
+    message: "Room amenity quantity updated successfully",
+    data: result,
+  });
+});
+
+export const deleteAmenityQuantity = asyncHandler(async (req, res) => {
+  const { amenityQuantityId } = req.params;
+  const {
+    deletedBy,
+  } = req.body;
+  const result = await deleteAmenityQuantityService(
+    amenityQuantityId,deletedBy
+  );
+
+  res.status(200).json({
+    success: true,
+    data:result,
+    message: "Room amenity quantity deleted successfully",
+  });
 });

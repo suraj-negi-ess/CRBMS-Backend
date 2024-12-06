@@ -15,11 +15,11 @@ const RoomAmenityQuantity = sequelize.define(
     
     quantity: {
       type: DataTypes.STRING(100),
-      allowNull: false,
+      allowNull: true,
     },
     status: {
       type: DataTypes.BOOLEAN,
-      allowNull: false,
+      allowNull: true,
       defaultValue: false,
     },
   },
@@ -37,6 +37,8 @@ Room.hasMany(RoomAmenityQuantity, {
     onDelete: 'CASCADE' // Optional: What happens when a User is deleted
   });
 
+RoomAmenityQuantity.belongsTo(Room, { foreignKey: 'roomId' });
+
   RoomAmenity.hasMany(RoomAmenityQuantity, {
     foreignKey: {
       name: 'amenityId',  // Foreign key in RoomAmenityQuantity
@@ -44,6 +46,8 @@ Room.hasMany(RoomAmenityQuantity, {
     },
     onDelete: 'CASCADE' // Optional: What happens when a User is deleted
   });
+
+  RoomAmenityQuantity.belongsTo(RoomAmenity, { foreignKey: 'amenityId' });
 
   User.hasMany(RoomAmenityQuantity, {
     foreignKey: {
@@ -53,6 +57,8 @@ Room.hasMany(RoomAmenityQuantity, {
     onDelete: 'CASCADE' // Optional: What happens when a User is deleted
   });
 
+  RoomAmenityQuantity.belongsTo(User, { foreignKey: 'createdBy' });
+
   User.hasMany(RoomAmenityQuantity, {
     foreignKey: {
       name: 'updatedBy',  // Foreign key in RoomAmenityQuantity
@@ -61,6 +67,8 @@ Room.hasMany(RoomAmenityQuantity, {
     onDelete: 'CASCADE' // Optional: What happens when a User is deleted
   });
 
+  RoomAmenityQuantity.belongsTo(User, { foreignKey: 'updatedBy' });
+
   User.hasMany(RoomAmenityQuantity, {
     foreignKey: {
       name: 'deletedBy',  // Foreign key in RoomAmenityQuantity
@@ -68,5 +76,7 @@ Room.hasMany(RoomAmenityQuantity, {
     },
     onDelete: 'CASCADE' // Optional: What happens when a User is deleted
   });
+
+  RoomAmenityQuantity.belongsTo(User, { foreignKey: 'deletedBy' });
 
 export default RoomAmenityQuantity;
