@@ -6,6 +6,9 @@ import { json } from "sequelize";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import path from "path";
 import fs from "fs";
+import RoomAmenityQuantity from "../models/RoomAmenitiesQuantity.models.js";
+import RoomAmenity from "../models/RoomAmenity.model.js";
+import User from "../models/User.models.js";
 
 export const createRoom = asyncHandler(async (req, res) => {
   const { name, description, location, capacity, amenities } = req.body;
@@ -224,4 +227,107 @@ export const changeStatus = asyncHandler(async (req, res) => {
     message: "Room status updated successfully",
     data: room,
   });
+});
+
+export const addRoomGallery = asyncHandler(async (req, res) => {
+  const { imageName, createdBy, updatedBy, deletedBy, status } = req.body;
+
+  let roomImagePath = null;
+  if (req.file) {
+    roomImagePath = `room-images/${name.replace(/\s+/g, "_")}${path
+      .extname(req.file.originalname)
+      .toLowerCase()}`;
+  }
+
+  // Parse amenities if it’s a string, ensuring it’s an array
+  const formattedAmenities = Array.isArray(amenities)
+    ? amenities
+    : typeof amenities === "string"
+    ? JSON.parse(amenities)
+    : [];
+
+  const room = await Room.create({
+    createdBy, 
+    updatedBy, 
+    deletedBy, 
+    status,
+    roomImagePath,
+  });
+
+  if (!room) {
+    if (req.file) fs.unlinkSync(`public/${roomImagePath}`); // Remove image if room creation fails
+    throw new ApiError(500, "Failed to create room");
+  }
+
+  if (req.file) {
+    const newRoomImagePath = `room-images/${name.replace(/\s+/g, "_")}_${
+      room.id
+    }${path.extname(req.file.originalname).toLowerCase()}`;
+    fs.renameSync(`public/${roomImagePath}`, `public/${newRoomImagePath}`);
+    room.roomImagePath = newRoomImagePath;
+    await room.save();
+  }
+
+  return res
+    .status(201)
+    .json(new ApiResponse(200, { room }, "Room Gallery Created Successfully"));
+});
+
+export const deleteRoomGallery = asyncHandler(async (req, res) => {
+  const { roomId } = req.params;
+
+  const room = await Room.findByPk(roomId);
+
+  if (!room) {
+    throw new ApiError(404, "Room gallery not found");
+  }
+
+  await room.destroy();
+
+  res.status(200).json({
+    success: true,
+    message: "Room gallery deleted successfully",
+  });
+});
+
+export const getAllAmenitiesQuantity = asyncHandler(async (req, res) => {
+  console.log("Hello");
+  const rooms = await RoomAmenityQuantity.findAll();
+
+  return res
+    .status(201)
+    .json(new ApiResponse(200, { rooms }, "Rooms amenities retrieved Successfully"));
+});
+
+export const getAllAmenitiesActiveQuantity = asyncHandler(async (req, res) => {
+  const rooms = await RoomAmenityQuantity.findAll({
+    where:{status:true}
+  });
+
+  return res
+    .status(201)
+    .json(new ApiResponse(200, { rooms }, "Rooms  Retrieved Successfully"));
+});
+
+export const createAmenityQuantity = asyncHandler(async (req, res) => {
+  const { quantity, createdBy, roomId,amenityId } = req.body;
+
+  if (!quantity) {
+    throw new ApiError(400, "Quantity Is required");
+  }
+
+    // TO-Do check for name to find duplicity  
+
+  const roomAmenity = await RoomAmenityQuantity.create({
+    quantity,
+     createdBy, 
+     roomId,
+     amenityId
+  });
+
+  res
+    .status(201)
+    .json(
+      new ApiResponse(201, { roomAmenity }, "Room Amenity Quantity added successfully")
+    );
 });

@@ -18,7 +18,7 @@ import {
   updateUserProfile,
   softDeleteUser,
   permanentDeleteUser,
-} from "../contollers/user.controller.js";
+} from "../controllers/user.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import upload from "../middlewares/multer.middleware.js";
 

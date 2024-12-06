@@ -9,7 +9,7 @@ import {
   getCommitteeMembers,
   removeUserFromCommittee,
   updateCommittee,
-} from "../contollers/committee.controller.js";
+} from "../controllers/committee.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();

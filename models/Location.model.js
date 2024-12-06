@@ -13,6 +13,7 @@ const Location = sequelize.define(
       type: DataTypes.STRING(200),
       allowNull: false,
     },
+   
     status: {
       type: DataTypes.BOOLEAN,
       allowNull: false,

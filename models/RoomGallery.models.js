@@ -2,7 +2,7 @@ import { DataTypes } from "sequelize";
 import { sequelize } from "../database/database.js";
 import Room from "./Room.models.js";
 
-const RoomAmenity = sequelize.define(
+const RoomGallery = sequelize.define(
   "RoomAmenity",
   {
     id: {
@@ -10,18 +10,22 @@ const RoomAmenity = sequelize.define(
       primaryKey: true,
       defaultValue: DataTypes.UUIDV4,
     },
-    name: {
+     imageName: {
       type: DataTypes.STRING(100),
       allowNull: false,
     },
-    description: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-    },
-    quantity: {
+    createdBy: {
       type: DataTypes.INTEGER,
-      defaultValue: 1,
+      defaultValue: null,
     },
+    updatedBy: {
+        type: DataTypes.INTEGER,
+        defaultValue: null,
+      },
+    deletedBy: {
+        type: DataTypes.INTEGER,
+        defaultValue: null,
+      },
     status: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
@@ -29,9 +33,14 @@ const RoomAmenity = sequelize.define(
     },
   },
   {
-    tableName: "room_amenities",
+    tableName: "room_gallery",
     timestamps: true,
   }
 );
 
-export default RoomAmenity;
+Room.hasMany(RoomGallery, {
+    foreignKey: 'roomId', // Foreign key in the Post model
+    onDelete: 'CASCADE' // Optional: What happens when a User is deleted
+  });
+
+export default RoomGallery;

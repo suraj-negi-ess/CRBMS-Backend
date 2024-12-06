@@ -3,18 +3,18 @@ import {
   addLocation,
   changeLocationStatus,
   deleteLocation,
+  getAllActiveLocations,
   getAllLocations,
   updateLocation,
-} from "../contollers/location.controller.js";
+} from "../controllers/location.controller.js";
 
-const router = express.Router();
+const locationRouter = express.Router();
 
-router.route("/locations").post(addLocation);
-router.route("/locations").get(getAllLocations);
-router.route("/locations/:id").put(updateLocation);
+locationRouter.route("/locations").post(addLocation);
+locationRouter.route("/locations").get(getAllLocations);
+locationRouter.route("/activeLocations").get(getAllActiveLocations);
+locationRouter.route("/locations/:id").put(updateLocation);
+locationRouter.route("/locations/:id/status").patch(changeLocationStatus);
+locationRouter.route("/locations/:id").delete(deleteLocation);
 
-router.route("/locations/:id/status").patch(changeLocationStatus);
-
-router.route("/locations/:id").delete(deleteLocation);
-
-export default router;
+export default locationRouter;

@@ -1,4 +1,5 @@
 import Location from "../models/Location.model.js";
+import { getAllActiveLocationService } from "../services/Location.services.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -60,6 +61,18 @@ export const getAllLocations = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(200, { locations }, "Locations retrieved successfully")
     );
+});
+
+// Get all active location
+export const getAllActiveLocations = asyncHandler(async (req, res) => {
+
+  const result = await getAllActiveLocationService();
+  return res
+  .status(200)
+  .json(
+    new ApiResponse(200, { result }, "Locations retrieved successfully")
+  );
+  
 });
 
 export const changeLocationStatus = asyncHandler(async (req, res) => {

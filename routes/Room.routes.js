@@ -8,19 +8,31 @@ import {
   deleteRoom,
   changeSanitationStatus,
   changeStatus,
-} from "../contollers/room.controller.js";
+  addRoomGallery,
+  deleteRoomGallery,
+  getAllAmenitiesQuantity,
+  getAllAmenitiesActiveQuantity,
+  createAmenityQuantity,
+} from "../controllers/room.controller.js";
 import uploadRoomImage from "../middlewares/roomMulter.middleware.js";
 
-const router = express.Router();
+const roomRouter = express.Router();
 
-router.route("/add-room").post(uploadRoomImage.single("roomImage"), createRoom);
-router.route("/all-rooms").get(getAllRooms);
-router.route("/:roomId").get(getRoomById);
-router.route("/:roomId").put(updateRoom);
-router.route("/:roomId").delete(deleteRoom);
+roomRouter.route("/add-room").post(uploadRoomImage.single("roomImage"), createRoom);
+roomRouter.route("/all-rooms").get(getAllRooms);
+roomRouter.route("/:roomId").get(getRoomById);
+roomRouter.route("/:roomId").put(updateRoom);
+roomRouter.route("/:roomId").delete(deleteRoom);
+roomRouter.route("/login").post(roomLogin);
+roomRouter.route("/change-sanitation-status").post(changeSanitationStatus);
+roomRouter.route("/change-status").post(changeStatus);
+roomRouter.route("/add-room-gallery").post(uploadRoomImage.single("roomImage"), addRoomGallery);
+roomRouter.route("/delete-room-gallery/:roomId").delete(deleteRoomGallery);
 
-router.route("/login").post(roomLogin);
-router.route("/change-sanitaion-status").post(changeSanitationStatus);
-router.route("/change-status").post(changeStatus);
+roomRouter.route("/all-amenity-quantity").get(getAllAmenitiesQuantity);
+roomRouter.route("/all-amenity-active-quantity").get(getAllAmenitiesActiveQuantity);
+roomRouter.route("/add-amenity-quantity").post(createAmenityQuantity);
+roomRouter.route("/edit-amenity-quantity/:roomId").put(updateRoom);
+roomRouter.route("/delete-amenity-quantity/:roomId").delete(deleteRoomGallery);
 
-export default router;
+export default roomRouter;

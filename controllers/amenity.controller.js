@@ -2,6 +2,7 @@ import RoomAmenity from "../models/RoomAmenity.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { getAllActiveAmenityService } from "../services/Amenity.service.js";
 
 export const createRoomAmenity = asyncHandler(async (req, res) => {
   const { name, description, quantity } = req.body;
@@ -33,6 +34,18 @@ export const getAllRoomAmenities = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(201, { roomAmenities }, "Room Amenity added successfully")
     );
+});
+
+export const getAllActiveRoomAmenities = asyncHandler(async (req, res) => {
+
+  const result = await getAllActiveAmenityService();
+  return res
+  .status(200)
+  .json(
+    new ApiResponse(200, { result }, "Amenity retrieved successfully")
+  );
+ 
+
 });
 
 export const updateRoomAmenity = asyncHandler(async (req, res) => {

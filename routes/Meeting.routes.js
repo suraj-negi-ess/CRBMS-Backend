@@ -4,7 +4,7 @@ import {
   getAllMeetings,
   getMyMeetings,
   getTodaysMeetings,
-} from "../contollers/meeting.controller.js";
+} from "../controllers/meeting.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();

@@ -1,43 +1,26 @@
 import dotenv from "dotenv";
+import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import { dbConnection } from "./database/database.js";
+import router from "./router.js";
+import Location from "./models/Location.model.js";
+
+const app = express();
+
 dotenv.config({
   path: "env",
 });
 
-import express from "express";
-import cors from "cors";
-import cookieParser from "cookie-parser";
-import { dbConnection, sequelize } from "./database/database.js";
-import userRoutes from "./routes/User.routes.js";
-import roomRoutes from "./routes/Room.routes.js";
-import amenityRoutes from "./routes/RoomAmenity.routes.js";
-import committeeRoutes from "./routes/Committee.routes.js";
-import meetingRoutes from "./routes/Meeting.routes.js";
-import locationRoutes from "./routes/Location.routes.js";
-
-import User from "./models/User.models.js";
-import CommitteeMember from "./models/CommitteeMember.models.js";
-import Room from "./models/Room.models.js";
-import Committee from "./models/Committee.models.js";
-import RoomAmenity from "./models/RoomAmenity.model.js";
-import Meeting from "./models/Meeting.models.js";
-import Location from "./models/Location.model.js";
-
-// CommitteeMember.belongsTo(User, { foreignKey: "userId", as: "User" });
-// User.hasMany(CommitteeMember, { foreignKey: "userId", as: "CommitteeMembers" });
-
-const app = express();
-
 const corsOptions = {
   origin: "http://localhost:5173",
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  methods: ["GET", "POST", "PUT", "DELETE","PATCH"],
   credentials: true,
 };
 
 app.use(cors(corsOptions));
-
 app.use(express.urlencoded({ extended: true })); // for form-data
 app.use(express.json()); // for raw JSON
-
 app.use(cookieParser());
 
 app.get("/", (req, res) => {
@@ -55,12 +38,7 @@ app.use("/room-images", express.static("public/room-images"));
 
 // API ROUTES
 
-app.use("/api/v1/user", userRoutes);
-app.use("/api/v1/rooms", roomRoutes);
-app.use("/api/v1/amenity", amenityRoutes);
-app.use("/api/v1/committee", committeeRoutes);
-app.use("/api/v1/meeting", meetingRoutes);
-app.use("/api/v1/location", locationRoutes);
+app.use(router);
 
 const PORT = process.env.PORT || 9000;
 
@@ -74,13 +52,13 @@ dbConnection()
     console.log("MONGODB CONNECTION FAILED !!!!", err);
   });
 
-// const syncModels = async () => {
-//   try {
-//     const abc = Meeting;
-//     await abc.sync({ alter: true, force: true });
-//     console.log(abc, "table synced.");
-//   } catch (error) {
-//     console.error("Error syncing ", abc, " table:", error);
-//   }
-// };
-// syncModels();
+const syncModels = async () => {
+  try {
+    const abc = RoomAmenityQuantity;
+    await abc.sync({ alter: true, force: true });
+    console.log(abc, "table synced.");
+  } catch (error) {
+    console.error("Error syncing ", abc, " table:", error);
+  }
+};
+//syncModels();

@@ -17,7 +17,7 @@ const Committee = sequelize.define(
       type: DataTypes.TEXT,
     },
     status: {
-      type: DataTypes.STRING(20),
+      type: DataTypes.BOOLEAN,
       defaultValue: "active",
     },
   },
